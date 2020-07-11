@@ -4,13 +4,35 @@ import { StyleSheet, Platform } from 'react-native';
 import styled from 'styled-components/native';
 import Constants from 'expo-constants';
 import _ from 'lodash';
+import AsyncStorage from '@react-native-community/async-storage';
+import produce from 'immer';
+
+// const obj = { a: 1, b: 2 };
+// const newObj = produce(obj, draft => {
+//     draft.b = 'b';
+//     draft.c = [];
+// });
+//
+// const complexData = {
+//     title: '',
+//     children : [
+//         {
+//             subTitle:''
+//         }
+//     ]
+// }
+// produce(complexData, draft => {
+//     draft.children[ 0 ].subTitle = 'new title';
+// })
+
+
 
 const Container = styled.SafeAreaView`
   flex: 1;
+  padding-top: ${Constants.statusBarHeight}px;
 `;
 const KeyboardAvoidingView = styled.KeyboardAvoidingView`
-  flex:1;
-  padding0top: ${Constants.statusBarHeight}px;
+  flex: 1;
 `;
 const Contents = styled.ScrollView`
   flex: 1;
@@ -34,71 +56,98 @@ const Input = styled.TextInput`
   flex: 1;
 `;
 const Button = styled.Button``;
-const TempText = styled.Text`
-  font-size: 20px;
-  margin-bottom: 12px;
+
+const Check = styled.TouchableOpacity`
+  margin-right: 4px;
 `;
+const CheckIcon = styled.Text`
+  font-size: 20px;
+`
 
 export default function App() {
-    const [ list, setList ] = React.useState([
-        { id:'1', todo:'할 일1'},
-        { id:'2', todo:'할 일2'}
-    ]);
+    const [list, setList] = React.useState([]);
+    const [inputTodo, setInputTodo] = React.useState( '' );
+    // 리턴은 컴포넌트, 컴포넌트로 이루어진 배열
 
-    const [inputTodo, setInputTodo] = React.useState('할 일 입력');
+    // ES6 - Promise : 비동기를 다루는 방식
+    // async (function) + await
 
-    // 리턴할 수 있는 값: 컴포넌트, 컴포넌트로 이루어진 배열
+    React.useEffect( () => {
+        AsyncStorage.getItem( 'list' )
+            .then( data => {
+                if( data !== null ) {
+                    setList( JSON.parse( data ) );
+                }
+            } )
+            .catch( error=>{
+                alert( error.message );
+            } );
+    }, [] );
+
+    const store = ( newList ) => {
+        setList( newList );
+        AsyncStorage.setItem( 'list', JSON.stringify( newList ) );
+    }
+
     return (
         <Container>
-            <KeyboardAvoidingView behavior={ Platform.OS === 'ios'? 'padding': 'height' }>
+            <KeyboardAvoidingView
+                behavior={ Platform.OS === 'ios' ? 'padding' : 'height' }
+            >
                 <Contents>
-                    {list.map(item => {
+                    {list.map( item => {
                         return (
                             <TodoItem key={ item.id }>
+                                <Check onPress={()=>{
+                                    store( produce( list, draft => {
+                                        const index = list.indexOf( item );
+                                        draft[ index ].done = !list[ index ].done;
+                                    } ) );
+                                }}>
+                                    <CheckIcon>
+                                        { item.done ? '✅' : '☑️' }
+                                    </CheckIcon>
+                                </Check>
                                 <TodoItemText>
-                                    {item.todo}
+                                    { item.todo }
                                 </TodoItemText>
                                 <TodoItemButton
                                     title="삭제"
-                                    onPress={()=>{
-                                        const rejectedList = _.reject(list, element => element.id === item.id)
-                                        setList( rejectedList );
-                                    }
-                                }>
-
-                                </TodoItemButton>
+                                    onPress={ () => {
+                                        store( _.reject( list, element => element.id === item.id ) );
+                                    } }
+                                />
                             </TodoItem>
                         )
                     })}
                 </Contents>
+                <InputContainer>
+                    <Input
+                        value={ inputTodo }
+                        onChangeText={ value => setInputTodo( value ) }
+                    />
+                    <Button
+                        title="전송"
+                        onPress={ () => {
+                            // 원본 배열을 수정하는 push는 사용 불가
+                            // inputTodo.push( { ... } );
+                            if( inputTodo === '' ) {
+                                return;
+                            }
+                            const newItem = {
+                                id: new Date().getTime().toString(),
+                                todo: inputTodo,
+                                done: false,
+                            };
+                            store( [
+                                ...list, // 전개 연산자 Spread Operator
+                                newItem,
+                            ] );
+                            setInputTodo( '' );
+                        } }
+                    />
+                </InputContainer>
             </KeyboardAvoidingView>
-
-            <InputContainer>
-                <Input value={inputTodo}
-                       onChangeText={value=> setInputTodo( value )}/>
-                <Button
-                    title="전송"
-                    onPress={ () => {
-                        //원본 배열을 수정 하는 push는 사용 불가
-                        // inputTodo.push({..})
-                        if( inputTodo === '') {
-                            return;
-                        }
-
-                        const newItem = {
-                            id: new Date().getTime().toString(),
-                            todo: inputTodo,
-                        };
-
-                        setList([
-                            ...list, // 전개 연산자 Spread Operator
-                            newItem
-                        ]);
-
-                        setInputTodo(''); // input 값 초기화
-
-                    } }/>
-            </InputContainer>
         </Container>
     );
 }
