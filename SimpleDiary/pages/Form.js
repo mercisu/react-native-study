@@ -39,6 +39,7 @@ function Form({navigation}) {
             date,
             text,
         } );
+
         await AsyncStorage.setItem( 'list', JSON.stringify( list ) );
         navigation.goBack();
     }

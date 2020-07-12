@@ -4,6 +4,7 @@ import Contents from '../components/Contents';
 import Button from '../components/Button';
 import styled from 'styled-components/native';
 import AsyncStorage from '@react-native-community/async-storage';
+import _ from 'lodash';
 
 const ListItem = styled.TouchableOpacity`
     width: 100%;
@@ -24,6 +25,7 @@ function List( { navigation } ) {
             setList( JSON.parse( data ) );
         }
     }
+
     React.useEffect(() => {
         const unsubscribe = navigation.addListener('focus', () => {
             load();
@@ -32,18 +34,20 @@ function List( { navigation } ) {
         load();
         return unsubscribe;
     }, [navigation]);
+
     return (
         <Container>
             <Contents>
-                {list.map( item => {
+                {_.sortBy(list, 'date').map( item => {
                     return (
                         <ListItem key={ item.date }
-                                  onPress={ () => navigation.navigate( 'Detail' ) }
+                                  onPress={ () => navigation.navigate( 'Detail',{ date: item.date} ) }
                         >
                             <Label>{item.date}</Label>
                         </ListItem>
                     )
-                })}
+                })
+                }
             </Contents>
             <Button onPress={ ()=> navigation.navigate( 'Form' ) }>
                 새 일기 작성
